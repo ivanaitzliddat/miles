@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.env
+*.local
+.DS_Store
+
+# Prisma
+packages/backend/prisma/*.db
+packages/backend/prisma/migrations/*.sql.bak
+
+# Frontend build
+packages/frontend/dist/
+
+# IDE
+.vscode/
+.idea/
