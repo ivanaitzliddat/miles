@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /Users/ivanaitzliddat/Downloads/miles log --oneline -5)",
+      "Bash(git -C /Users/ivanaitzliddat/Downloads/miles branch -a)",
+      "WebFetch(domain:github.com)",
+      "Bash(npm install:*)",
+      "Bash(npx tsx:*)",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}
