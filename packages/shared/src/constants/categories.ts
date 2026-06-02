@@ -11,12 +11,10 @@ export const SPEND_CATEGORY_LABELS: Record<SpendCategory, string> = {
 
 /**
  * Human-readable labels for payment methods.
+ * CONTACTLESS covers physical paywave + Apple Pay + Google Pay + Samsung Pay.
  */
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  [PaymentMethod.APPLE_PAY]: "Apple Pay",
-  [PaymentMethod.GOOGLE_PAY]: "Google Pay",
-  [PaymentMethod.SAMSUNG_PAY]: "Samsung Pay",
-  [PaymentMethod.CONTACTLESS]: "Contactless",
+  [PaymentMethod.CONTACTLESS]: "Contactless / Mobile Pay",
   [PaymentMethod.ONLINE]: "Online",
   [PaymentMethod.PHYSICAL]: "Physical Card",
 };

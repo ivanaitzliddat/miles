@@ -10,15 +10,24 @@
     "typecheck": "tsc --noEmit",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
     "@miles-tracker/shared": "*",
     "@prisma/client": "^6.3.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "grammy": "^1.35.0"
+    "express-rate-limit": "^8.3.1",
+    "grammy": "^1.35.0",
+    "helmet": "^8.1.0",
+    "zod": "^4.3.6"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

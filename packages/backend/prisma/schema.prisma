@@ -1,0 +1,248 @@
+// Prisma schema for Miles Tracker
+// Docs: https://www.prisma.io/docs/reference/api-reference/prisma-schema-reference
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum Bank {
+  DBS
+  UOB
+  CITI
+  OCBC
+  SCB
+  HSBC
+  MAYBANK
+  AMEX
+  BOC
+}
+
+enum RewardType {
+  DBS_POINTS
+  UNI_DOLLAR
+  THANKYOU_POINTS
+  CITI_MILES
+  OCBC_TRAVEL_DOLLARS
+  OCBC_VOYAGE_MILES
+  SCB_360_REWARDS
+  HSBC_REWARD_POINTS
+  MAYBANK_TREATS
+  KRISFLYER_MILES
+  AMEX_MR
+  BOC_POINTS
+  OTHER // AI-researched cards with unknown reward type
+}
+
+enum SpendCategory {
+  LOCAL
+  FOREIGN
+  FOREIGN_ASEAN
+}
+
+// CONTACTLESS covers physical paywave + Apple Pay + Google Pay + Samsung Pay.
+// Banks cannot distinguish between them at the transaction level.
+enum PaymentMethod {
+  CONTACTLESS
+  ONLINE
+  PHYSICAL
+}
+
+enum MerchantCategory {
+  DINING
+  TRAVEL
+  SIA_GROUP
+  PETROL
+  GROCERY
+  SHOPPING
+  TRANSPORT
+  ENTERTAINMENT
+  BEAUTY_WELLNESS
+  EDUCATION
+  HEALTHCARE
+  UTILITIES
+  ONLINE_SHOPPING
+  ONLINE_TRAVEL
+  FAMILY
+}
+
+// Lifecycle of a card in the catalog.
+// DRAFT    → AI-populated, not yet reviewed
+// PENDING  → Submitted by user, awaiting admin approval
+// ACTIVE   → Verified, visible to all users
+// OUTDATED → Rate monitor flagged a potential change, pending review
+enum CardStatus {
+  DRAFT
+  PENDING
+  ACTIVE
+  OUTDATED
+}
+
+// ─────────────────────────────────────────────
+// CARD CATALOG
+// ─────────────────────────────────────────────
+
+model Card {
+  id                 Int         @id @default(autoincrement())
+  slug               String      @unique
+  bank               Bank
+  name               String
+  fullName           String
+  rewardType         RewardType
+  rewardUnit         String
+  rewardToMilesRate  Float       // miles per 1 reward unit (to primary partner)
+  primaryMilesPartner String
+  transferPartners   String[]    // array of programme names
+  transferFeeSgd     Float?
+  officialUrl        String
+  notes              String?
+  status             CardStatus  @default(ACTIVE)
+  lastVerifiedAt     DateTime?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  earningRates       EarningRate[]
+  rateHistory        RateHistory[]
+  userCards          UserCard[]
+  pendingRateChanges PendingRateChange[]
+}
+
+// One Card has many EarningRates (e.g. local base, foreign, bonus category).
+// Matching logic: all non-null fields must match for the rate to apply.
+model EarningRate {
+  id                       Int                @id @default(autoincrement())
+  cardId                   Int
+  card                     Card               @relation(fields: [cardId], references: [id])
+
+  spendCategory            SpendCategory
+  paymentMethod            PaymentMethod?     // null = any payment method
+  merchantCategories       MerchantCategory[] // empty = any merchant; non-empty = only these
+  excludedMerchantCategories MerchantCategory[] // rate never applies to these MCCs
+
+  milesPerDollar           Float
+  rewardPerDollar          Float
+  roundDownTo              Int?               // round transaction down to nearest $X (e.g. 5 for UOB)
+  monthlyCapSgd            Float?             // max SGD spend eligible for this rate per month
+  annualCapSgd             Float?             // max SGD spend eligible per year
+  minimumMonthlySpendSgd   Float?             // min monthly spend to unlock this rate
+
+  description              String?
+  createdAt                DateTime           @default(now())
+
+  @@index([cardId])
+}
+
+// Audit trail of every rate change (for transparency and rollback).
+model RateHistory {
+  id            Int       @id @default(autoincrement())
+  cardId        Int
+  card          Card      @relation(fields: [cardId], references: [id])
+  field         String    // which field changed e.g. "milesPerDollar"
+  oldValue      String    // stored as string for flexibility
+  newValue      String
+  effectiveDate DateTime
+  sourceUrl     String?   // URL where the change was confirmed
+  approvedBy    String?   // Telegram username of admin who approved
+  createdAt     DateTime  @default(now())
+
+  @@index([cardId])
+}
+
+// Pending rate changes detected by the rate monitor agent.
+// Admin must approve or reject before any DB changes are applied.
+model PendingRateChange {
+  id            Int       @id @default(autoincrement())
+  cardId        Int
+  card          Card      @relation(fields: [cardId], references: [id])
+
+  field         String    // e.g. "milesPerDollar", "monthlyCapSgd"
+  earningRateDescription String // human-readable label e.g. "LOCAL base rate"
+  oldValue      String    // current value in DB (as string)
+  newValue      String    // value found on bank page (as string)
+
+  sourceUrl     String    // URL where the change was detected
+  detectedAt    DateTime  @default(now())
+
+  status        String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  resolvedAt    DateTime?
+  resolvedBy    String?   // Telegram username of admin
+
+  @@index([cardId])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────────
+// USERS & THEIR CARDS
+// ─────────────────────────────────────────────
+
+model User {
+  id          Int        @id @default(autoincrement())
+  telegramId  BigInt     @unique  // Telegram user IDs can exceed 32-bit int
+  firstName   String
+  lastName    String?
+  username    String?
+  createdAt   DateTime   @default(now())
+
+  userCards   UserCard[]
+  transactions Transaction[]
+}
+
+// A card that a specific user has added to their wallet.
+model UserCard {
+  id                   Int        @id @default(autoincrement())
+  userId               Int
+  user                 User       @relation(fields: [userId], references: [id])
+  cardId               Int
+  card                 Card       @relation(fields: [cardId], references: [id])
+  nickname             String?    // optional custom name e.g. "My DBS card"
+  billingCycleStartDay Int        @default(1) // day of month billing cycle resets (1–28)
+  excludedRateIds      Int[]      // rate IDs the user can't access (e.g. no savings account)
+  addedAt              DateTime   @default(now())
+
+  transactions         Transaction[]
+
+  @@unique([userId, cardId])  // a user can only add the same card once
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// TRANSACTIONS
+// ─────────────────────────────────────────────
+
+model Transaction {
+  id             Int               @id @default(autoincrement())
+  userId         Int
+  user           User              @relation(fields: [userId], references: [id])
+  userCardId     Int
+  userCard       UserCard          @relation(fields: [userCardId], references: [id])
+
+  amount         Float             // amount in original currency
+  currency       String            // ISO 4217 e.g. "SGD", "USD"
+  amountSgd      Float             // SGD equivalent (for cap tracking)
+
+  spendCategory  SpendCategory
+  paymentMethod  PaymentMethod
+  merchantCategory MerchantCategory? // null if not specified
+
+  description    String?
+  merchantName   String?
+
+  rewardEarned   Float             // raw reward units earned (e.g. DBS Points)
+  milesEarned    Float             // equivalent miles
+  effectiveMpd   Float             // actual mpd after cap/rounding (for display)
+
+  transactionDate DateTime
+  createdAt       DateTime         @default(now())
+
+  @@index([userId])
+  @@index([userCardId])
+  @@index([transactionDate])
+}

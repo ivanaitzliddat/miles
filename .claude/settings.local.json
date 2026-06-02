@@ -6,7 +6,13 @@
       "WebFetch(domain:github.com)",
       "Bash(npm install:*)",
       "Bash(npx tsx:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "WebSearch",
+      "WebFetch(domain:www.dbs.com.sg)",
+      "WebFetch(domain:www.uob.com.sg)",
+      "WebFetch(domain:milelion.com)",
+      "WebFetch(domain:mainlymiles.com)",
+      "WebFetch(domain:www.americanexpress.com)"
     ]
   }
 }

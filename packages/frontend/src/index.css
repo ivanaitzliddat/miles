@@ -1,0 +1,543 @@
+/* ── Reset ──────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Design tokens ────────────────────────────────────────────────────────────
+   We layer our own brand tokens on top of Telegram's theme variables so the
+   app adopts the user's light/dark preference while still feeling premium.    */
+:root {
+  /* Brand */
+  --brand:          #5C51F4;
+  --brand-dark:     #4338CA;
+  --brand-light:    #EEF2FF;
+  --brand-gradient: linear-gradient(135deg, #5C51F4 0%, #9B59F5 100%);
+
+  /* Semantic */
+  --success:        #00C48C;
+  --success-bg:     rgba(0, 196, 140, 0.10);
+  --warning:        #FF9500;
+  --warning-bg:     rgba(255, 149, 0, 0.10);
+  --danger:         #FF3B30;
+  --danger-bg:      rgba(255, 59, 48, 0.10);
+
+  /* Surface — falls back to nice defaults when outside Telegram */
+  --bg:             var(--tg-theme-bg-color,            #F5F5F7);
+  --bg2:            var(--tg-theme-secondary-bg-color,  #FFFFFF);
+  --text:           var(--tg-theme-text-color,          #1C1C1E);
+  --hint:           var(--tg-theme-hint-color,          #8E8E93);
+
+  --card-bg:        #FFFFFF;
+  --card-border:    rgba(0, 0, 0, 0.06);
+  --card-shadow:    0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.06);
+  --card-shadow-lg: 0 8px 32px rgba(0,0,0,0.10);
+
+  /* Radii */
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r:    16px;
+  --r-lg: 20px;
+  --r-xl: 24px;
+
+  /* Layout */
+  --page-x:     18px;
+  --nav-h:      60px;
+  --safe-b:     env(safe-area-inset-bottom, 0px);
+}
+
+/* ── Base ─────────────────────────────────────────────────────────────────── */
+html, body, #root {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── App shell ────────────────────────────────────────────────────────────── */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: 430px;    /* looks great on larger phones too */
+  margin: 0 auto;
+}
+
+.page {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px var(--page-x) calc(20px + var(--safe-b));
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Bottom navigation ────────────────────────────────────────────────────── */
+.bottom-nav {
+  display: flex;
+  background: var(--card-bg);
+  border-top: 1px solid var(--card-border);
+  padding-bottom: var(--safe-b);
+  height: calc(var(--nav-h) + var(--safe-b));
+  flex-shrink: 0;
+}
+
+.nav-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--hint);
+  font-size: 10px;
+  font-weight: 500;
+  padding: 8px 0 4px;
+  position: relative;
+  transition: color 0.15s;
+}
+
+.nav-tab.active { color: var(--brand); }
+
+.nav-tab svg { width: 22px; height: 22px; flex-shrink: 0; }
+
+/* Active indicator dot above icon */
+.nav-tab.active::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--brand);
+}
+
+/* ── Section headings ─────────────────────────────────────────────────────── */
+.section { margin-bottom: 28px; }
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 12px;
+}
+
+.section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--hint);
+}
+
+/* ── Card surface ─────────────────────────────────────────────────────────── */
+.card {
+  background: var(--card-bg);
+  border-radius: var(--r);
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+}
+
+/* ── Hero card (gradient, used on Dashboard) ──────────────────────────────── */
+.hero-card {
+  background: var(--brand-gradient);
+  border-radius: var(--r-lg);
+  padding: 24px;
+  color: #fff;
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Decorative circles */
+.hero-card::before,
+.hero-card::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.07);
+  pointer-events: none;
+}
+.hero-card::before { width: 180px; height: 180px; right: -40px; top: -60px; }
+.hero-card::after  { width: 120px; height: 120px; right: 60px;  bottom: -50px; }
+
+.hero-label { font-size: 13px; font-weight: 500; opacity: 0.75; margin-bottom: 6px; }
+.hero-miles { font-size: 42px; font-weight: 800; letter-spacing: -1px; line-height: 1; font-variant-numeric: tabular-nums; }
+.hero-unit  { font-size: 15px; font-weight: 500; opacity: 0.75; margin-top: 4px; }
+.hero-sub   { margin-top: 16px; font-size: 13px; opacity: 0.7; }
+
+/* ── Stats row ────────────────────────────────────────────────────────────── */
+.stats-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.stat-chip {
+  flex: 1;
+  background: var(--card-bg);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+  box-shadow: var(--card-shadow);
+}
+
+.stat-chip-value { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat-chip-label { font-size: 11px; color: var(--hint); margin-top: 2px; }
+
+/* ── List rows ────────────────────────────────────────────────────────────── */
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--card-border);
+}
+
+.list-row:first-child { border-radius: var(--r) var(--r) 0 0; }
+.list-row:last-child  { border-radius: 0 0 var(--r) var(--r); border-bottom: none; }
+.list-row:only-child  { border-radius: var(--r); }
+.list-row             { box-shadow: none; }
+
+/* Wrap in .card to get the shadow */
+.card .list-row:first-child { border-top-left-radius: var(--r); border-top-right-radius: var(--r); }
+.card .list-row:last-child  { border-bottom-left-radius: var(--r); border-bottom-right-radius: var(--r); border-bottom: none; }
+
+/* Bank colour dot */
+.bank-dot {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.row-main  { flex: 1; min-width: 0; }
+.row-title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row-sub   { font-size: 12px; color: var(--hint); margin-top: 2px; }
+.row-right { text-align: right; flex-shrink: 0; }
+.row-value { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.row-hint  { font-size: 11px; color: var(--hint); margin-top: 2px; }
+
+/* ── Amount input ─────────────────────────────────────────────────────────── */
+.amount-wrap {
+  display: flex;
+  align-items: center;
+  background: var(--card-bg);
+  border-radius: var(--r);
+  box-shadow: var(--card-shadow);
+  padding: 0 18px;
+  margin-bottom: 12px;
+  gap: 6px;
+}
+
+.amount-prefix { font-size: 22px; font-weight: 700; color: var(--hint); }
+
+.amount-input {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 18px 0;
+  font-size: 28px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  outline: none;
+  width: 0; /* flex will size it */
+}
+
+.amount-input::placeholder { color: var(--card-border); }
+
+/* ── Spend type pills ─────────────────────────────────────────────────────── */
+.type-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px; /* prevent clipping of pill shadow */
+}
+
+.type-row::-webkit-scrollbar { display: none; }
+
+.type-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 16px;
+  border-radius: var(--r-sm);
+  border: 1.5px solid transparent;
+  background: var(--card-bg);
+  box-shadow: var(--card-shadow);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.type-pill .pill-emoji { font-size: 18px; }
+.type-pill .pill-label { font-size: 11px; font-weight: 600; color: var(--hint); }
+
+.type-pill.active {
+  border-color: var(--brand);
+  background: var(--brand-light);
+}
+.type-pill.active .pill-label { color: var(--brand); }
+
+/* ── Recommendation rows ──────────────────────────────────────────────────── */
+.rec-list { border-radius: var(--r); box-shadow: var(--card-shadow); overflow: hidden; }
+
+.rec-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--card-border);
+  cursor: pointer;
+  transition: background 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.rec-row:active { background: var(--brand-light); }
+.rec-row.tapping { background: var(--brand-light); opacity: 0.7; }
+.rec-row:last-child { border-bottom: none; }
+.rec-row:first-child { border-radius: var(--r) var(--r) 0 0; }
+.rec-row:last-child  { border-radius: 0 0 var(--r) var(--r); }
+.rec-row:only-child  { border-radius: var(--r); }
+
+.rec-rank { font-size: 20px; width: 32px; text-align: center; flex-shrink: 0; }
+
+.rec-info { flex: 1; min-width: 0; }
+.rec-name { font-size: 14px; font-weight: 600; }
+.rec-detail { font-size: 12px; color: var(--hint); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.rec-numbers { text-align: right; flex-shrink: 0; }
+.rec-mpd   { font-size: 16px; font-weight: 800; color: var(--brand); font-variant-numeric: tabular-nums; }
+.rec-miles { font-size: 11px; color: var(--hint); margin-top: 1px; }
+
+/* Cap warning pill */
+.cap-warn { display: inline-block; background: var(--warning-bg); color: var(--warning); font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; margin-top: 4px; }
+.cap-full  { background: var(--danger-bg); color: var(--danger); }
+
+/* ── Credit card shape (My Cards) ─────────────────────────────────────────── */
+.credit-card {
+  width: 100%;
+  aspect-ratio: 1.586;
+  border-radius: 18px;
+  padding: 20px 22px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: var(--card-shadow-lg);
+  margin-bottom: 16px;
+  cursor: default;
+}
+
+/* Decorative shine */
+.credit-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.credit-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.credit-card-bank  { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.8; }
+.credit-card-chip  { width: 32px; height: 24px; border-radius: 5px; background: rgba(255,255,255,0.35); border: 1px solid rgba(255,255,255,0.5); }
+.credit-card-name  { font-size: 15px; font-weight: 700; letter-spacing: 0.01em; }
+.credit-card-miles { font-size: 12px; opacity: 0.75; margin-top: 2px; }
+
+/* ── Add card button ──────────────────────────────────────────────────────── */
+.add-card-btn {
+  width: 100%;
+  aspect-ratio: 1.586;
+  border-radius: 18px;
+  border: 2px dashed var(--card-border);
+  background: var(--card-bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--hint);
+  font-size: 14px;
+  font-weight: 500;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.add-card-btn:active { border-color: var(--brand); color: var(--brand); }
+
+.add-card-btn svg { width: 28px; height: 28px; }
+
+/* ── Slide-up sheet ───────────────────────────────────────────────────────── */
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+}
+
+.sheet {
+  width: 100%;
+  max-height: 80vh;
+  background: var(--bg);
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: slide-up 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+.sheet-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--card-border);
+  margin: 12px auto 0;
+  flex-shrink: 0;
+}
+
+.sheet-header {
+  padding: 16px 20px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.sheet-title { font-size: 16px; font-weight: 700; }
+.sheet-close { font-size: 20px; color: var(--hint); cursor: pointer; background: none; border: none; }
+
+.sheet-body  { overflow-y: auto; padding: 16px 20px calc(20px + var(--safe-b)); }
+
+/* ── Primary button ───────────────────────────────────────────────────────── */
+.btn-primary {
+  display: block;
+  width: 100%;
+  padding: 15px;
+  background: var(--brand-gradient);
+  color: #fff;
+  border: none;
+  border-radius: var(--r-sm);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  letter-spacing: 0.01em;
+  transition: opacity 0.15s;
+}
+
+.btn-primary:disabled { opacity: 0.4; cursor: default; }
+.btn-primary:active   { opacity: 0.85; }
+
+/* ── Page header ──────────────────────────────────────────────────────────── */
+.page-header {
+  margin-bottom: 22px;
+}
+
+.page-title { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+.page-sub   { font-size: 14px; color: var(--hint); margin-top: 3px; }
+
+/* ── Empty state ──────────────────────────────────────────────────────────── */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 48px 32px;
+  color: var(--hint);
+}
+
+.empty-icon { font-size: 44px; margin-bottom: 14px; }
+.empty p    { font-size: 15px; line-height: 1.6; }
+
+/* ── Loading skeleton ─────────────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, var(--card-border) 25%, rgba(0,0,0,0.02) 50%, var(--card-border) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: var(--r-xs);
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Error message ────────────────────────────────────────────────────────── */
+.error-banner {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 14px;
+}
+
+/* ── Toast notification ───────────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: calc(var(--nav-h) + var(--safe-b) + 16px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1C1C1E;
+  color: #fff;
+  border-radius: 22px;
+  padding: 11px 22px;
+  font-size: 14px;
+  font-weight: 600;
+  z-index: 100;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+  animation: toast-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes toast-in {
+  from { transform: translateX(-50%) translateY(8px); opacity: 0; }
+  to   { transform: translateX(-50%) translateY(0);   opacity: 1; }
+}
+
+/* ── Success state ────────────────────────────────────────────────────────── */
+.success-card {
+  background: var(--success-bg);
+  border-radius: var(--r);
+  padding: 20px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.success-icon  { font-size: 36px; margin-bottom: 8px; }
+.success-title { font-size: 18px; font-weight: 700; color: var(--success); }
+.success-sub   { font-size: 13px; color: var(--hint); margin-top: 4px; }
+
+/* ── Utility ──────────────────────────────────────────────────────────────── */
+.hint-text  { color: var(--hint); font-size: 13px; }
+.bold       { font-weight: 700; }
+.mono       { font-variant-numeric: tabular-nums; }
