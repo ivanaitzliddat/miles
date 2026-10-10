@@ -51,7 +51,7 @@ db-up:
 			-e POSTGRES_USER=miles \
 			-e POSTGRES_PASSWORD=miles_dev \
 			-e POSTGRES_DB=miles_tracker \
-			-p 5432:5432 \
+			-p 127.0.0.1:5432:5432 \
 			-d postgres:16; \
 		sleep 2; \
 	fi

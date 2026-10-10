@@ -1,5 +1,7 @@
 # Miles Tracker — Workshop & Project Reference
 
+> Historical development notes. Card rates and setup details below may be outdated; see the [README](README.md) for the current project overview.
+
 ## Your Profile
 - **Level**: Intermediate developer
 - **Known**: TypeScript, React, SQL/Databases

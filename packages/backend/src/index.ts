@@ -16,20 +16,23 @@ import cardResearchRouter from "./api/cardResearch.js";
 import rateMonitorRouter from "./api/rateMonitor.js";
 
 const app = express();
-const PORT = process.env.PORT ?? 3000;
+const PORT = Number(process.env.PORT ?? 3000);
+if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
+  throw new Error("PORT must be an integer between 1 and 65535.");
+}
+const HOST = process.env.HOST ?? (process.env.NODE_ENV === "production" ? "0.0.0.0" : "127.0.0.1");
 
 // ── Global middleware (order matters) ────────────────────────────────────────
 app.use(helmetMiddleware);
 app.use(corsMiddleware);
 app.use(rateLimitMiddleware);
 app.use(express.json({ limit: "10kb" })); // reject oversized payloads
-app.use(telegramAuth);                    // verify Telegram signature on every request
-
-// ── Routes ────────────────────────────────────────────────────────────────────
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
+app.use(telegramAuth);                    // verify Telegram signature on application routes
 
+// ── Routes ────────────────────────────────────────────────────────────────────
 app.use("/cards", cardsRouter);
 app.use("/cards/research", cardResearchRouter);
 app.use("/admin/monitor", rateMonitorRouter);
@@ -45,8 +48,8 @@ app.use((_req, res) => {
 // ── Global error handler — must be last ──────────────────────────────────────
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`Server running on http://${HOST}:${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV ?? "development"}`);
 });
 

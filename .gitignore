@@ -1,5 +1,7 @@
 node_modules/
 dist/
+*.tsbuildinfo
+.claude/settings.local.json
 .env
 *.local
 .DS_Store

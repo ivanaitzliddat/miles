@@ -43,7 +43,7 @@ declare global {
 
 // ── Core validation ───────────────────────────────────────────────────────────
 
-function verifyInitData(initData: string, botToken: string): TelegramUser {
+export function verifyInitData(initData: string, botToken: string): TelegramUser {
   const params = new URLSearchParams(initData);
 
   const receivedHash = params.get("hash");
@@ -78,9 +78,13 @@ function verifyInitData(initData: string, botToken: string): TelegramUser {
   }
 
   // Replay attack prevention: reject if initData is older than 24 hours
-  const authDate = parseInt(params.get("auth_date") ?? "0", 10);
+  const rawAuthDate = params.get("auth_date") ?? "";
+  if (!/^\d+$/.test(rawAuthDate)) {
+    throw new AppError(401, "Invalid auth_date in initData.");
+  }
+  const authDate = Number(rawAuthDate);
   const ageSeconds = Math.floor(Date.now() / 1000) - authDate;
-  if (ageSeconds > 86400) {
+  if (!Number.isSafeInteger(authDate) || ageSeconds > 86400 || ageSeconds < -300) {
     throw new AppError(401, "initData has expired. Please reopen the app.");
   }
 
@@ -109,8 +113,7 @@ export function telegramAuth(req: Request, _res: Response, next: NextFunction): 
   try {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
-    // Dev bypass: if no bot token or NODE_ENV is not production,
-    // skip validation and inject the dev user.
+    // Dev bypass when no initData is supplied, so the browser can be used locally.
     // This means you can still use curl/Postman during development.
     if (!botToken || process.env.NODE_ENV !== "production") {
       if (process.env.NODE_ENV === "production") {
@@ -118,15 +121,12 @@ export function telegramAuth(req: Request, _res: Response, next: NextFunction): 
         throw new AppError(500, "TELEGRAM_BOT_TOKEN is not configured.");
       }
 
-      // Development: use initData if provided and valid, otherwise fall back to dev user
+      // Supplied initData must verify; never replace an invalid identity with the dev user.
       const initData = req.headers["x-telegram-init-data"] as string | undefined;
-      if (initData && botToken) {
-        try {
-          req.telegramUser = verifyInitData(initData, botToken);
-          return next();
-        } catch {
-          // In dev, fall through to dev user rather than blocking
-        }
+      if (initData) {
+        if (!botToken) throw new AppError(503, "TELEGRAM_BOT_TOKEN is not configured.");
+        req.telegramUser = verifyInitData(initData, botToken);
+        return next();
       }
 
       // Inject dev user — clearly logged so it's obvious auth is bypassed
