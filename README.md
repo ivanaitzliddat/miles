@@ -62,5 +62,5 @@ npm test -w packages/backend
 
 - Card research stores a draft after user confirmation. Drafts remain inactive; an administrator activation workflow is still to be built.
 - The rate monitor compares suggested values to stored rates and queues differences. Approvals and rejections are restricted to `ADMIN_TELEGRAM_ID` and recorded with the verified Telegram ID. A suggestion that cannot be matched to exactly one existing rate stays pending for manual review.
-- The calculation engine works from card rules and recorded spending. It cannot account for every bank exclusion, reward-point conversion, settlement-date rule, or promotional term.
+- The calculation engine works from card rules and recorded spending. Current cap tracking conservatively counts all logged spend on a card against each capped rate because transactions do not yet store the rate they used. This can understate remaining bonus capacity and affect rankings. The engine also cannot account for every bank exclusion, reward-point conversion, settlement-date rule, or promotional term.
 - [WORKSHOP.md](WORKSHOP.md) records the development history and ideas. Its card figures and planned deployment sections are historical notes, not current bank guidance or a claim that deployment is complete.

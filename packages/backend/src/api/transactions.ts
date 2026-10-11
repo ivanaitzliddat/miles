@@ -98,11 +98,12 @@ router.post("/", strictRateLimit, async (req, res, next) => {
 // GET /transactions/:id
 router.get("/:id", async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) throw new AppError(400, "Invalid transaction ID.");
+    if (!req.telegramUser) throw new AppError(401, "Not authenticated.");
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(id) || id <= 0) throw new AppError(400, "Invalid transaction ID.");
 
-    const transaction = await prisma.transaction.findUnique({
-      where: { id },
+    const transaction = await prisma.transaction.findFirst({
+      where: { id, user: { telegramId: BigInt(req.telegramUser.id) } },
       include: { userCard: { include: { card: true } } },
     });
 

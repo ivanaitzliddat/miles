@@ -99,7 +99,7 @@ export default function Recommend({ telegramId }: Props) {
         </div>
       </div>
 
-      {/* ASEAN context note — only meaningful for UOB PRVI Miles */}
+      {/* ASEAN context note */}
       {st.spendCategory === "FOREIGN_ASEAN" && (
         <div style={{
           background: "var(--brand-light)",
@@ -111,7 +111,7 @@ export default function Recommend({ telegramId }: Props) {
           lineHeight: 1.5,
         }}>
           💡 <b>ASEAN FCY</b> means spending in foreign currency in Southeast Asia (MYR, THB, IDR, PHP etc.).<br />
-          Most cards treat this identically to regular foreign spend. The only card in your wallet that earns a different rate for ASEAN is <b>UOB PRVI Miles</b> (3.0 mpd vs 2.4 mpd).
+          Some cards have separate ASEAN rates. Check the current terms for each card before relying on a recommendation.
         </div>
       )}
 

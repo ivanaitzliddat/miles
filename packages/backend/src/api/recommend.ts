@@ -3,8 +3,7 @@
  *
  * POST /recommend — given a spend scenario, rank the user's cards by effective MPD.
  *
- * The full ranking logic (cap tracking, rounding) is implemented in Module 4.
- * This route wires the HTTP layer; the calculation engine plugs in via TODO below.
+ * The route loads the user's wallet and calls the ranking engine through milesService.
  */
 
 import { Router } from "express";
