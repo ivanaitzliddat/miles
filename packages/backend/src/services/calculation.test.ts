@@ -97,6 +97,35 @@ describe("findBestRate", () => {
     monthlyCapSgd: 1000,
   });
 
+  it("returns no eligible rate when a merchant exclusion rejects the only base rate", () => {
+    const excluded = makeRate({ excludedMerchantCategories: ["TRAVEL"] });
+    expect(findBestRate([excluded], { amountSgd: 100, spendCategory: "LOCAL", paymentMethod: "ONLINE", merchantCategory: "TRAVEL" }, new Map(), 0)).toBeNull();
+  });
+
+  it("does not revive an unmet minimum-spend rate through a base fallback", () => {
+    const locked = makeRate({ minimumMonthlySpendSgd: 800 });
+    expect(findBestRate([locked], { amountSgd: 100, spendCategory: "LOCAL", paymentMethod: "ONLINE" }, new Map(), 500)).toBeNull();
+  });
+
+  it("does not revive an explicitly excluded rate or an exhausted capped rate", () => {
+    const only = makeRate({ id: 1 });
+    const input = { amountSgd: 100, spendCategory: "LOCAL", paymentMethod: "ONLINE" } as const;
+    expect(findBestRate([only], input, new Map(), 0, [1])).toBeNull();
+    expect(findBestRate([makeRate({ id: 1, monthlyCapSgd: 1000 })], input, new Map([[1, 1000]]), 0)).toBeNull();
+  });
+
+  it("applies eligibility checks to the FOREIGN_ASEAN fallback", () => {
+    const input = { amountSgd: 100, spendCategory: "FOREIGN_ASEAN", paymentMethod: "ONLINE", merchantCategory: "TRAVEL" } as const;
+    const invalid = makeRate({ id: 1, spendCategory: "FOREIGN", excludedMerchantCategories: ["TRAVEL"], milesPerDollar: 4 });
+    const valid = makeRate({ id: 2, spendCategory: "FOREIGN", milesPerDollar: 1 });
+    expect(findBestRate([invalid, valid], input, new Map(), 0)?.id).toBe(2);
+    expect(findBestRate([invalid], input, new Map(), 0)).toBeNull();
+  });
+
+  it("returns no rate for an empty catalog", () => {
+    expect(findBestRate([], { amountSgd: 100, spendCategory: "LOCAL", paymentMethod: "ONLINE" }, new Map(), 0)).toBeNull();
+  });
+
   it("picks the bonus rate when payment method matches", () => {
     const rate = findBestRate(
       [baseLocal, bonusOnline],
@@ -104,7 +133,7 @@ describe("findBestRate", () => {
       new Map(),
       0
     );
-    expect(rate.milesPerDollar).toBe(4.0);
+    expect(rate?.milesPerDollar).toBe(4.0);
   });
 
   it("falls back to base rate when cap is exhausted", () => {
@@ -115,7 +144,7 @@ describe("findBestRate", () => {
       periodSpend,
       0
     );
-    expect(rate.milesPerDollar).toBe(1.3);
+    expect(rate?.milesPerDollar).toBe(1.3);
   });
 
   it("falls back to base rate when payment method does not match", () => {
@@ -125,7 +154,7 @@ describe("findBestRate", () => {
       new Map(),
       0
     );
-    expect(rate.milesPerDollar).toBe(1.3);
+    expect(rate?.milesPerDollar).toBe(1.3);
   });
 
   it("respects merchant category inclusion", () => {
@@ -141,7 +170,7 @@ describe("findBestRate", () => {
       new Map(),
       0
     );
-    expect(rate.milesPerDollar).toBe(4.0);
+    expect(rate?.milesPerDollar).toBe(4.0);
   });
 
   it("respects merchant category exclusion (Citi Rewards travel MCC)", () => {
@@ -160,7 +189,7 @@ describe("findBestRate", () => {
       new Map(),
       0
     );
-    expect(rate.milesPerDollar).toBe(1.3); // excluded, falls back to base
+    expect(rate?.milesPerDollar).toBe(1.3); // excluded, falls back to base
   });
 
   it("respects minimum monthly spend unlock (Maybank Horizon)", () => {
@@ -179,7 +208,7 @@ describe("findBestRate", () => {
       new Map(),
       500 // only $500 spent this month
     );
-    expect(rateBelow.milesPerDollar).toBe(0.4);
+    expect(rateBelow?.milesPerDollar).toBe(0.4);
 
     // Above unlock threshold
     const rateAbove = findBestRate(
@@ -188,7 +217,7 @@ describe("findBestRate", () => {
       new Map(),
       900 // $900 spent this month — unlocked
     );
-    expect(rateAbove.milesPerDollar).toBe(2.8);
+    expect(rateAbove?.milesPerDollar).toBe(2.8);
   });
 });
 
@@ -224,6 +253,19 @@ describe("splitAtCap", () => {
 // ─────────────────────────────────────────────
 
 describe("calculateMiles", () => {
+  it("does not award overflow miles using an excluded or ineligible base rate", () => {
+    const bonus = makeRate({ id: 2, paymentMethod: "ONLINE", monthlyCapSgd: 1000, milesPerDollar: 4, rewardPerDollar: 4 });
+    const input = { amountSgd: 100, spendCategory: "LOCAL", paymentMethod: "ONLINE", merchantCategory: "TRAVEL" } as const;
+    const base = makeRate({ id: 1, milesPerDollar: 1, rewardPerDollar: 1 });
+    expect(calculateMiles(makeCard({ earningRates: [base, bonus] }), input, new Map([[2, 950]]), 0, [1]).milesEarned).toBe(200);
+    expect(calculateMiles(makeCard({ earningRates: [makeRate({ ...base, excludedMerchantCategories: ["TRAVEL"] }), bonus] }), input, new Map([[2, 950]]), 0).milesEarned).toBe(200);
+    expect(calculateMiles(makeCard({ earningRates: [bonus] }), input, new Map([[2, 950]]), 0).milesEarned).toBe(200);
+  });
+
+  it("reports zero earnings with no applied rate when none is eligible", () => {
+    const result = calculateMiles(makeCard({ earningRates: [makeRate({ id: 1 })] }), { amountSgd: 100, spendCategory: "LOCAL", paymentMethod: "ONLINE" }, new Map(), 0, [1]);
+    expect(result).toMatchObject({ milesEarned: 0, rewardEarned: 0, effectiveMpd: 0, rateId: null, capRemaining: null });
+  });
   it("DBS Altitude: 1.3 mpd local, no rounding", () => {
     const card = makeCard({
       rewardToMilesRate: 2.0,
@@ -334,6 +376,11 @@ describe("calculateMiles", () => {
 // ─────────────────────────────────────────────
 
 describe("rankCards", () => {
+  it("explains unavailable earning rules without presenting an ineligible rate", () => {
+    const ranked = rankCards([{ userCardId: 1, cardSlug: "synthetic", cardName: "Synthetic", bank: "Example", card: makeCard({ earningRates: [] }), periodSpendByRateId: new Map(), totalMonthlySpend: 0, excludedRateIds: [] }], { amountSgd: 100, spendCategory: "LOCAL", paymentMethod: "ONLINE" });
+    expect(ranked[0]).toMatchObject({ milesEarned: 0, effectiveMpd: 0, capExhausted: false });
+    expect(ranked[0].reasoning).toMatch(/no eligible earning rate/i);
+  });
   it("ranks cards by effective MPD descending", () => {
     const cardA = makeCard({
       id: 1, slug: "card-a", bank: "DBS",

@@ -24,7 +24,7 @@ export interface CalcResult {
   rewardEarned: number;   // raw reward units (e.g. DBS Points, UNI$)
   milesEarned: number;    // equivalent air miles
   effectiveMpd: number;   // actual mpd after caps and rounding
-  rateId: number;         // which EarningRate was applied
+  rateId: number | null;  // null when no earning rate is eligible
   billableAmount: number; // amount after rounding down (for display)
   capRemaining: number | null; // null = no cap on this rate
 }
@@ -60,97 +60,42 @@ export interface Recommendation {
  *   5. periodSpend must be below rate.monthlyCapSgd (if cap exists)
  *   6. totalMonthlySpend must meet rate.minimumMonthlySpendSgd (if unlock exists)
  *
- * Returns the highest-mpd applicable rate, falling back to the base rate.
+ * Returns the highest-mpd eligible rate, or null when no rule applies.
+ * FOREIGN_ASEAN can use eligible FOREIGN rules when no ASEAN rule applies.
  */
+function isEligible(
+  rate: EarningRate,
+  input: TransactionInput,
+  periodSpendByRateId: Map<number, number>,
+  totalMonthlySpend: number,
+  excludedRateIds: number[],
+  ignoreCap = false
+): boolean {
+  if (excludedRateIds.includes(rate.id) || rate.spendCategory !== input.spendCategory) return false;
+  if (rate.paymentMethod && rate.paymentMethod !== input.paymentMethod) return false;
+  if (rate.merchantCategories.length > 0 &&
+      (!input.merchantCategory || !rate.merchantCategories.includes(input.merchantCategory as never))) return false;
+  if (input.merchantCategory && rate.excludedMerchantCategories.includes(input.merchantCategory as never)) return false;
+  if (!ignoreCap && rate.monthlyCapSgd !== null &&
+      (periodSpendByRateId.get(rate.id) ?? 0) >= rate.monthlyCapSgd) return false;
+  if (rate.minimumMonthlySpendSgd !== null && totalMonthlySpend < rate.minimumMonthlySpendSgd) return false;
+  return true;
+}
+
 export function findBestRate(
   rates: EarningRate[],
   input: TransactionInput,
-  periodSpendByRateId: Map<number, number>, // rateId → SGD spent so far this period
-  totalMonthlySpend: number,                // total spend this month (for unlock checks)
-  excludedRateIds: number[] = []            // rate IDs this user can't access
-): EarningRate {
-  const applicable = rates.filter((rate) => {
-    // Skip rates the user has explicitly excluded (e.g. savings account tier without account)
-    if (excludedRateIds.includes(rate.id)) return false;
-    // 1. Spend category
-    if (rate.spendCategory !== input.spendCategory) return false;
-
-    // 2. Payment method (null = any)
-    if (rate.paymentMethod && rate.paymentMethod !== input.paymentMethod) return false;
-
-    // 3. Merchant category inclusion
-    if (rate.merchantCategories.length > 0) {
-      if (!input.merchantCategory) return false;
-      if (!rate.merchantCategories.includes(input.merchantCategory as never)) return false;
-    }
-
-    // 4. Merchant category exclusion
-    if (
-      input.merchantCategory &&
-      rate.excludedMerchantCategories.includes(input.merchantCategory as never)
-    ) return false;
-
-    // 5. Monthly cap — if cap is fully used, this rate no longer applies
-    if (rate.monthlyCapSgd !== null) {
-      const spent = periodSpendByRateId.get(rate.id) ?? 0;
-      if (spent >= rate.monthlyCapSgd) return false;
-    }
-
-    // 6. Minimum monthly spend unlock
-    if (
-      rate.minimumMonthlySpendSgd !== null &&
-      totalMonthlySpend < rate.minimumMonthlySpendSgd
-    ) return false;
-
-    return true;
-  });
-
-  if (applicable.length === 0) {
-    // Fallback 1: uncapped base rate for the same spend category
-    const baseRates = rates.filter(
-      (r) =>
-        r.spendCategory === input.spendCategory &&
-        !r.paymentMethod &&
-        r.merchantCategories.length === 0 &&
-        r.monthlyCapSgd === null &&
-        !excludedRateIds.includes(r.id)
-    );
-    if (baseRates.length > 0) return baseRates.sort((a, b) => b.milesPerDollar - a.milesPerDollar)[0];
-
-    // Fallback 2: FOREIGN_ASEAN → treat as FOREIGN (ASEAN is a subset of foreign spend;
-    // cards without an explicit ASEAN rate earn the same as regular foreign spend).
-    if (input.spendCategory === "FOREIGN_ASEAN") {
-      const foreignRates = rates.filter(
-        (r) =>
-          r.spendCategory === "FOREIGN" &&
-          !r.paymentMethod &&
-          r.merchantCategories.length === 0 &&
-          r.monthlyCapSgd === null &&
-          !excludedRateIds.includes(r.id)
-      );
-      if (foreignRates.length > 0) return foreignRates.sort((a, b) => b.milesPerDollar - a.milesPerDollar)[0];
-    }
-
-    // Fallback 3: any rate for this category (catches capped rates with no base alternative)
-    const anySameCategory = rates
-      .filter((r) => r.spendCategory === input.spendCategory && !excludedRateIds.includes(r.id))
-      .sort((a, b) => a.milesPerDollar - b.milesPerDollar);
-    if (anySameCategory.length > 0) return anySameCategory[0];
-
-    // Fallback 4: FOREIGN_ASEAN → any FOREIGN rate
-    if (input.spendCategory === "FOREIGN_ASEAN") {
-      const anyForeign = rates
-        .filter((r) => r.spendCategory === "FOREIGN" && !excludedRateIds.includes(r.id))
-        .sort((a, b) => a.milesPerDollar - b.milesPerDollar);
-      if (anyForeign.length > 0) return anyForeign[0];
-    }
-
-    // Should never reach here — every card must have at least one rate
-    return rates[0];
+  periodSpendByRateId: Map<number, number>,
+  totalMonthlySpend: number,
+  excludedRateIds: number[] = []
+): EarningRate | null {
+  const eligible = (candidate: TransactionInput) => rates.filter(rate =>
+    isEligible(rate, candidate, periodSpendByRateId, totalMonthlySpend, excludedRateIds));
+  let applicable = eligible(input);
+  if (applicable.length === 0 && input.spendCategory === "FOREIGN_ASEAN") {
+    applicable = eligible({ ...input, spendCategory: "FOREIGN" });
   }
-
-  // Return the highest mpd applicable rate
-  return applicable.sort((a, b) => b.milesPerDollar - a.milesPerDollar)[0];
+  return applicable.sort((a, b) => b.milesPerDollar - a.milesPerDollar)[0] ?? null;
 }
 
 // ─────────────────────────────────────────────
@@ -187,7 +132,7 @@ export function getBillableAmount(amountSgd: number, roundDownTo?: number | null
 export function splitAtCap(
   billableAmount: number,
   bonusRate: EarningRate,
-  baseRate: EarningRate,
+  baseRate: EarningRate | undefined,
   periodSpend: number
 ): { bonusAmount: number; baseAmount: number } {
   if (bonusRate.monthlyCapSgd === null) {
@@ -229,17 +174,19 @@ export function calculateMiles(
     excludedRateIds
   );
 
+  if (!bestRate) {
+    return { rewardEarned: 0, milesEarned: 0, effectiveMpd: 0,
+      rateId: null, billableAmount: 0, capRemaining: null };
+  }
+
   const billableAmount = getBillableAmount(input.amountSgd, bestRate.roundDownTo);
 
   // Find base rate for cap overflow calculation
-  const baseRate = card.earningRates.find(
-    (r) =>
-      r.spendCategory === input.spendCategory &&
-      !r.paymentMethod &&
-      r.merchantCategories.length === 0 &&
-      r.monthlyCapSgd === null &&
-      r.id !== bestRate.id
-  ) ?? bestRate;
+  const baseInput = { ...input, spendCategory: bestRate.spendCategory };
+  const baseRate = card.earningRates.filter(r =>
+    r.monthlyCapSgd === null && r.id !== bestRate.id &&
+    isEligible(r, baseInput, periodSpendByRateId, totalMonthlySpend, excludedRateIds)
+  ).sort((a, b) => b.milesPerDollar - a.milesPerDollar)[0];
 
   const periodSpend = periodSpendByRateId.get(bestRate.id) ?? 0;
   const { bonusAmount, baseAmount } = splitAtCap(
@@ -250,11 +197,11 @@ export function calculateMiles(
   );
 
   const bonusReward = bonusAmount * bestRate.rewardPerDollar;
-  const baseReward = baseAmount * baseRate.rewardPerDollar;
+  const baseReward = baseAmount * (baseRate?.rewardPerDollar ?? 0);
   const totalReward = bonusReward + baseReward;
 
   const bonusMiles = bonusAmount * bestRate.milesPerDollar;
-  const baseMiles = baseAmount * baseRate.milesPerDollar;
+  const baseMiles = baseAmount * (baseRate?.milesPerDollar ?? 0);
   const totalMiles = bonusMiles + baseMiles;
 
   const effectiveMpd =
@@ -313,11 +260,20 @@ export function rankCards(
       uc.excludedRateIds
     );
 
+    if (!bestRate) {
+      return { userCardId: uc.userCardId, cardSlug: uc.cardSlug, cardName: uc.cardName,
+        bank: uc.bank, effectiveMpd: 0, milesEarned: 0, capRemaining: null,
+        capExhausted: false, exhaustedBonusMpd: null,
+        reasoning: "No eligible earning rate for this transaction" };
+    }
+
     // Detect if a higher-mpd capped rate was excluded purely because the cap was exhausted.
     // This lets the frontend show "was X mpd, cap reached" instead of silently showing base rate.
     const exhaustedBonus = uc.card.earningRates.find((r) => {
       if (uc.excludedRateIds.includes(r.id)) return false;
-      if (r.spendCategory !== input.spendCategory) return false;
+      if (bestRate.monthlyCapSgd !== null || !isEligible(r,
+        { ...input, spendCategory: bestRate.spendCategory },
+        uc.periodSpendByRateId, uc.totalMonthlySpend, uc.excludedRateIds, true)) return false;
       if (r.monthlyCapSgd === null) return false;
       if (r.milesPerDollar <= result.effectiveMpd) return false;
       const spent = uc.periodSpendByRateId.get(r.id) ?? 0;
